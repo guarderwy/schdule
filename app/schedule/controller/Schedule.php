@@ -47,7 +47,7 @@ class Schedule extends BaseController
             ->alias('r')
             ->join('staff s', 'r.staff_id = s.id')
             ->field('r.*, s.name as staff_name')
-            ->where('request_date', 'between', [$nextWeekStart, date('Y-m-d', strtotime($nextWeekStart . ' +6 day'))])
+            // ->where('request_date', 'between', [$nextWeekStart, date('Y-m-d', strtotime($nextWeekStart . ' +6 day'))])
             ->select();
 
         $data = [
@@ -70,11 +70,22 @@ class Schedule extends BaseController
         $params = Request::param();
         Db::name('schedule_requests')->insert([
             'staff_id'     => $params['staff_id'],
-            'request_date' => $params['date'],
-            'shift_name'   => $params['shift'],
+            'request_date' => $params['request_date'],
+            'shift_name'   => $params['shift'],  // 对应前端传的 'shift'
+            'reason'       => $params['reason'] ?? '', // 增加：保存备注理由
             'create_time'  => date('Y-m-d H:i:s')
         ]);
         return json(['code' => 200, 'msg' => '需求已记录']);
+    }
+
+    /**
+     * 删除申请记录 (新增，匹配前端 deleteRequest 方法)
+     */
+    public function deleteRequest($id)
+    {
+        if (!$id) return json(['code' => 400, 'msg' => '参数错误']);
+        Db::name('schedule_requests')->where('id', $id)->delete();
+        return json(['code' => 200, 'msg' => '需求已删除']);
     }
 
     /**
@@ -163,5 +174,12 @@ class Schedule extends BaseController
             }
         }
         return $errors;
+    }
+
+    public function getWeekDataByDate()
+    {
+        $start = Request::param('start');
+        $staffs = Db::name('staff')->select();
+        return json(['code' => 200, 'data' => $this->getWeekData($staffs, $start)]);
     }
 }

@@ -36,7 +36,7 @@ class CreateNursingSchedule extends Migrator
             ->create();
 
         // 2. 排班记录表
-        $this->table('schedules')
+        $this->table('schedule')
             ->addColumn('staff_id', 'integer')
             ->addColumn('work_date', 'date')
             ->addColumn('shift_name', 'string', ['limit' => 20])
@@ -48,6 +48,7 @@ class CreateNursingSchedule extends Migrator
             ->addColumn('staff_id', 'integer')
             ->addColumn('request_date', 'date')
             ->addColumn('shift_name', 'string', ['limit' => 20]) // 如 '休'
+            ->addColumn('reason', 'string', ['limit' => 255, 'default' => '']) // 增加默认值为空字符串
             ->create();
     }
 }

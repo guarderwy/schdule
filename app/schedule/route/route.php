@@ -24,6 +24,8 @@ Route::group('schedule', function () {
     Route::post('generate', 'Schedule/generate');     // 生成/刷新夜班组
     Route::post('save', 'Schedule/save');             // 校验并保存
     Route::post('addRequest', 'Schedule/addRequest'); // 【新增】添加休息/班次需求
+    Route::post('deleteRequest/:id', 'Schedule/deleteRequest'); 
+    Route::get('getWeek', 'Schedule/getWeekDataByDate'); // 新增获取任意周接口
 });
 
 // --- 人员管理接口 (Staff.php) ---
