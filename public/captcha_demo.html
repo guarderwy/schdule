@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>验证码演示</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .captcha-container {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .captcha-img {
+            border: 1px solid #ddd;
+            padding: 5px;
+            margin: 10px;
+        }
+        .controls {
+            margin: 20px 0;
+        }
+        input, button {
+            padding: 8px;
+            margin: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>验证码演示页面</h1>
+    
+    <div class="controls">
+        <label for="length">验证码长度：</label>
+        <input type="number" id="length" min="1" max="10" value="4">
+        <button onclick="refreshCaptcha()">刷新验证码</button>
+    </div>
+    
+    <div class="captcha-container">
+        <img id="captchaImg" class="captcha-img" src="./backend/captcha" alt="验证码" onclick="refreshCaptcha()">
+        <p>点击图片刷新验证码</p>
+    </div>
+    
+    <script>
+        function refreshCaptcha() {
+            const length = document.getElementById('length').value;
+            const timestamp = new Date().getTime();
+            document.getElementById('captchaImg').src = `./backend/captcha/${length}?t=${timestamp}`;
+        }
+        
+        // 页面加载时初始化验证码
+        window.onload = function() {
+            refreshCaptcha();
+        };
+    </script>
+</body>
+</html>

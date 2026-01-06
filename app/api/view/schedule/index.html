@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>医院护士排班系统</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .controls {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .controls input, .controls select, .controls button {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .controls button {
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+            border: none;
+        }
+        .controls button:hover {
+            background-color: #0056b3;
+        }
+        .controls button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .validate-btn {
+            background-color: #28a745;
+        }
+        .validate-btn:hover {
+            background-color: #218838;
+        }
+        .save-btn {
+            background-color: #17a2b8;
+        }
+        .save-btn:hover {
+            background-color: #138496;
+        }
+        .refresh-btn {
+            background-color: #ffc107;
+            color: black;
+        }
+        .refresh-btn:hover {
+            background-color: #e0a800;
+        }
+        .copy-btn {
+            background-color: #6f42c1;
+        }
+        .copy-btn:hover {
+            background-color: #5a32a3;
+        }
+        .error-message {
+            color: red;
+            margin: 10px 0;
+            padding: 10px;
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            border-radius: 4px;
+        }
+        .success-message {
+            color: green;
+            margin: 10px 0;
+            padding: 10px;
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            border-radius: 4px;
+        }
+        .schedule-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        .schedule-table th, .schedule-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+        }
+        .schedule-table th {
+            background-color: #f2f2f2;
+            position: sticky;
+            top: 0;
+        }
+        .shift-cell {
+            min-width: 100px;
+            height: 60px;
+            vertical-align: top;
+        }
+        .shift-input {
+            width: 100%;
+            height: 100%;
+            border: none;
+            padding: 4px;
+            font-size: 12px;
+        }
+        .shift-input:focus {
+            outline: 1px solid #007bff;
+            background-color: #f0f8ff;
+        }
+        .day-header {
+            background-color: #e9ecef;
+            font-weight: bold;
+        }
+        .weekend {
+            background-color: #fff3cd;
+        }
+        .weekday {
+            background-color: white;
+        }
+        .notes {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #e9ecef;
+            border-radius: 4px;
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+        }
+        .shift-legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 10px 0;
+        }
+        .shift-item {
+            display: inline-block;
+            padding: 2px 6px;
+            background-color: #e9ecef;
+            border-radius: 3px;
+            font-size: 12px;
+        }
+        .table-section {
+            margin-bottom: 30px;
+        }
+        .table-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>医院护士排班系统</h1>
+        </div>
+        
+        <div class="shift-legend">
+            <div class="shift-item">P: 白班</div>
+            <div class="shift-item">N: 夜班</div>
+            <div class="shift-item">助夜: 周一至周五</div>
+            <div class="shift-item">医嘱/服药: 周一至周五</div>
+            <div class="shift-item">医+服: 周六至周日</div>
+            <div class="shift-item">正1/正2: 每天</div>
+            <div class="shift-item">正(中): 周一至周五</div>
+            <div class="shift-item">A1/A2: 每天</div>
+            <div class="shift-item">休: 休息</div>
+            <div class="shift-item">休(prn): 备班</div>
+        </div>
+
+        <div class="controls">
+            <label>当前周次:
+                <input type="number" id="currentWeekNo" value="1" min="1" max="52">
+            </label>
+            <label>下周周次:
+                <input type="number" id="nextWeekNo" value="2" min="1" max="52">
+            </label>
+            <button onclick="loadCurrentWeekSchedule()" id="loadCurrentBtn">加载当前周排班</button>
+            <button onclick="generateNextWeekSchedule()" id="generateBtn">生成下周排班</button>
+            <button onclick="copySchedule()" class="copy-btn" id="copyBtn" disabled>拷贝班次</button>
+            <button onclick="refreshNextWeekSchedule()" class="refresh-btn" id="refreshBtn" disabled>刷新排班</button>
+            <button onclick="validateNextWeekSchedule()" class="validate-btn" id="validateBtn" disabled>检测排班</button>
+            <button onclick="saveNextWeekSchedule()" class="save-btn" id="saveBtn" disabled>保存排班</button>
+            <span id="statusMessage"></span>
+        </div>
+
+        <div id="errorMessage" class="error-message" style="display: none;"></div>
+        <div id="successMessage" class="success-message" style="display: none;"></div>
+
+        <div id="loading" class="loading" style="display: none;">加载中...</div>
+        
+        <!-- 当前周排班表 -->
+        <div class="table-section">
+            <div class="table-title">当前周排班 (不可编辑)</div>
+            <div id="currentScheduleContainer"></div>
+        </div>
+        
+        <!-- 下周排班表 -->
+        <div class="table-section">
+            <div class="table-title">下周排班 (可编辑)</div>
+            <div id="nextScheduleContainer"></div>
+        </div>
+
+        <div class="notes">
+            <h3>系统说明：</h3>
+            <ul>
+                <li>夜班规律: P，N，休，休(prn)，A1或A2，助夜，P，N...</li>
+                <li>周一到周五: 医嘱班、服药班、助夜班、正(中)班</li>
+                <li>周六到周日: 医+服班</li>
+                <li>每天: 正1班、正2班、A1班、A2班</li>
+                <li>夜休第二天为备班，即休(prn)</li>
+                <li>支持人员申请设置（休息或指定班次）</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        let currentSchedule = {};
+        let nextSchedule = {};
+        let currentWeekNo = 1;
+        let nextWeekNo = 2;
+        let staffList = []; // 护士列表
+
+        // 加载护士列表
+        async function loadStaffList() {
+            // 不再调用API，直接使用模拟数据
+            staffList = ['张护士', '李护士', '王护士', '赵护士', '陈护士', '刘护士', '杨护士', '周护士'];
+        }
+
+        // 加载当前周排班
+        async function loadCurrentWeekSchedule() {
+            currentWeekNo = document.getElementById('currentWeekNo').value;
+            if (!currentWeekNo || currentWeekNo < 1 || currentWeekNo > 52) {
+                showMessage('请输入正确的当前周次（1-52）', 'error');
+                return;
+            }
+
+            showLoading(true);
+            try {
+                const response = await fetch(`/api/schedule/get?week_no=${currentWeekNo}`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const result = await response.json();
+                if (result.code === 0) {
+                    currentSchedule = result.data;
+                    renderCurrentSchedule(currentSchedule);
+                    showMessage('当前周排班加载成功', 'success');
+                } else {
+                    showMessage('当前周排班加载失败: ' + (result.msg || '未知错误'), 'error');
+                }
+            } catch (error) {
+                showMessage('请求失败: ' + error.message, 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // 生成下周排班
+        async function generateNextWeekSchedule() {
+            nextWeekNo = document.getElementById('nextWeekNo').value;
+            if (!nextWeekNo || nextWeekNo < 1 || nextWeekNo > 52) {
+                showMessage('请输入正确的下周周次（1-52）', 'error');
+                return;
+            }
+
+            showLoading(true);
+            try {
+                const response = await fetch(`/api/schedule/generate?week_no=${nextWeekNo}`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const result = await response.json();
+                if (result.code === 0) {
+                    nextSchedule = result.data;
+                    renderNextSchedule(nextSchedule);
+                    enableButtons();
+                    showMessage('下周排班生成成功', 'success');
+                } else {
+                    showMessage('下周排班生成失败: ' + (result.msg || '未知错误'), 'error');
+                    console.error('API错误详情:', result);
+                }
+            } catch (error) {
+                showMessage('请求失败: ' + error.message, 'error');
+                console.error('网络错误详情:', error);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // 拷贝班次
+        function copySchedule() {
+            if (Object.keys(currentSchedule).length === 0) {
+                showMessage('请先加载当前周排班', 'error');
+                return;
+            }
+
+            // 获取下周的日期
+            const nextWeekNo = document.getElementById('nextWeekNo').value;
+            const nextWeekDates = getWeekDates(parseInt(nextWeekNo));
+            
+            // 获取当前周的日期（假设currentSchedule中的日期键是连续的7天）
+            const currentDates = Object.keys(currentSchedule).sort();
+            
+            if (currentDates.length === 0) {
+                showMessage('当前周排班数据为空', 'error');
+                return;
+            }
+            
+            // 将当前周的班次数据映射到下周的日期上
+            nextSchedule = {};
+            for (let i = 0; i < 7; i++) {
+                if (currentDates[i]) {
+                    // 将当前周的日期数据复制到下周对应的日期上
+                    nextSchedule[nextWeekDates[i]] = JSON.parse(JSON.stringify(currentSchedule[currentDates[i]]));
+                }
+            }
+            
+            renderNextSchedule(nextSchedule);
+            enableButtons();
+            showMessage('班次拷贝成功', 'success');
+        }
+
+        // 获取指定周的日期
+        function getWeekDates(weekNo) {
+            // 使用当前年份
+            const year = new Date().getFullYear();
+            
+            // 创建一个日期对象，表示该年第weekNo周的周一
+            // 使用ISO 8601标准，周一为一周的开始
+            const january4 = new Date(year, 0, 4); // 每年的1月4日，通常属于第1周
+            const firstMonday = new Date(january4);
+            firstMonday.setDate(january4.getDate() - (january4.getDay() - 1 + 7) % 7); // 计算第1周的周一
+            
+            // 计算目标周的周一
+            const targetMonday = new Date(firstMonday);
+            targetMonday.setDate(firstMonday.getDate() + (weekNo - 1) * 7);
+            
+            const dates = [];
+            for (let i = 0; i < 7; i++) {
+                const date = new Date(targetMonday);
+                date.setDate(targetMonday.getDate() + i);
+                
+                // 格式化日期为 YYYY-MM-DD
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                dates.push(`${year}-${month}-${day}`);
+            }
+            return dates;
+        }
+
+        // 刷新下周排班
+        async function refreshNextWeekSchedule() {
+            if (Object.keys(nextSchedule).length === 0) {
+                showMessage('请先生成下周排班', 'error');
+                return;
+            }
+
+            showLoading(true);
+            try {
+                const response = await fetch(`/api/schedule/refresh?week_no=${nextWeekNo}`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const result = await response.json();
+                if (result.code === 0) {
+                    nextSchedule = result.data;
+                    renderNextSchedule(nextSchedule);
+                    showMessage('下周排班刷新成功', 'success');
+                } else {
+                    showMessage('下周排班刷新失败: ' + (result.msg || '未知错误'), 'error');
+                }
+            } catch (error) {
+                showMessage('请求失败: ' + error.message, 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // 验证下周排班
+        async function validateNextWeekSchedule() {
+            if (Object.keys(nextSchedule).length === 0) {
+                showMessage('请先生成下周排班', 'error');
+                return;
+            }
+
+            showLoading(true);
+            try {
+                const response = await fetch(`/api/schedule/validate`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        week_no: nextWeekNo,
+                        schedule: nextSchedule
+                    })
+                });
+
+                const result = await response.json();
+                if (result.code === 0) {
+                    if (result.valid) {
+                        showMessage('下周排班验证通过，符合所有要求', 'success');
+                    } else {
+                        showMessage('下周排班验证未通过：\n' + result.errors.join('\n'), 'error');
+                    }
+                } else {
+                    showMessage('排班验证失败: ' + (result.msg || '未知错误'), 'error');
+                }
+            } catch (error) {
+                showMessage('请求失败: ' + error.message, 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // 保存下周排班
+        async function saveNextWeekSchedule() {
+            if (Object.keys(nextSchedule).length === 0) {
+                showMessage('请先生成下周排班', 'error');
+                return;
+            }
+
+            // 先验证排班
+            const validateResponse = await fetch(`/api/schedule/validate`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    week_no: nextWeekNo,
+                    schedule: nextSchedule
+                })
+            });
+
+            const validateResult = await validateResponse.json();
+            if (!validateResult.valid) {
+                showMessage('下周排班不符合要求，无法保存：\n' + validateResult.errors.join('\n'), 'error');
+                return;
+            }
+
+            showLoading(true);
+            try {
+                const response = await fetch(`/api/schedule/save`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        week_no: nextWeekNo,
+                        schedule: nextSchedule
+                    })
+                });
+
+                const result = await response.json();
+                if (result.code === 0) {
+                    showMessage('下周排班保存成功', 'success');
+                } else {
+                    showMessage('下周排班保存失败: ' + (result.msg || '未知错误'), 'error');
+                }
+            } catch (error) {
+                showMessage('请求失败: ' + error.message, 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // 获取所有护士和班次
+        function getAllStaffAndShifts(schedule) {
+            const allShifts = new Set();
+            const allStaffNames = new Set();
+            const dates = Object.keys(schedule).sort();
+
+            dates.forEach(date => {
+                if (schedule[date]) {
+                    Object.keys(schedule[date]).forEach(key => {
+                        if (!key.endsWith('_id')) {
+                            if (key !== 'N_id' && key !== '助夜_id' && key !== '医嘱_id' && key !== '服药_id' && 
+                                key !== '医+服_id' && key !== '正1_id' && key !== '正2_id' && key !== '正(中)_id' && 
+                                key !== 'A1_id' && key !== 'A2_id') {
+                                allShifts.add(key);
+                            } else {
+                                // 获取护士姓名
+                                const shiftName = key.replace('_id', '');
+                                if (schedule[date][shiftName]) {
+                                    allStaffNames.add(schedule[date][shiftName]);
+                                }
+                            }
+                        }
+                    });
+                }
+            });
+
+            return {
+                shifts: Array.from(allShifts).filter(shift => !shift.endsWith('_id')).sort(),
+                staffNames: Array.from(allStaffNames).sort()
+            };
+        }
+
+        // 渲染当前周排班表（只读）
+        function renderCurrentSchedule(schedule) {
+            if (!schedule || Object.keys(schedule).length === 0) {
+                document.getElementById('currentScheduleContainer').innerHTML = '<p>暂无当前周排班数据</p>';
+                return;
+            }
+
+            // 获取所有日期并排序
+            const dates = Object.keys(schedule).sort();
+            if (dates.length === 0) {
+                document.getElementById('currentScheduleContainer').innerHTML = '<p>暂无当前周排班数据</p>';
+                return;
+            }
+
+            // 按周一到周日重新排序日期
+            const sortedDates = sortDatesByWeekday(dates);
+
+            const { shifts, staffNames } = getAllStaffAndShifts(schedule);
+
+            let html = '<table class="schedule-table">';
+            
+            // 表头 - 显示周一到周日
+            html += '<tr>';
+            html += '<th>姓名</th>';
+            // 根据日期生成列标题（周一到周日）
+            sortedDates.forEach(date => {
+                const dayOfWeek = new Date(date).getDay();
+                const weekDayNames = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+                html += `<th>${weekDayNames[dayOfWeek]}<br>${date}</th>`;
+            });
+            html += '</tr>';
+
+            // 数据行 - 每个护士一行
+            staffNames.forEach(staffName => {
+                html += '<tr>';
+                html += `<td class="day-header">${staffName}</td>`;
+                
+                // 按周一到周日的顺序显示数据
+                sortedDates.forEach(date => {
+                    let shiftValue = '';
+                    // 查找该护士在该日期的班次
+                    for (let shift of shifts) {
+                        if (schedule[date] && schedule[date][shift] === staffName) {
+                            shiftValue = shift;
+                            break;
+                        }
+                    }
+                    html += `<td class="shift-cell">${shiftValue || '--'}</td>`;
+                });
+                
+                html += '</tr>';
+            });
+
+            html += '</table>';
+            document.getElementById('currentScheduleContainer').innerHTML = html;
+        }
+
+        // 渲染下周排班表（可编辑）
+        function renderNextSchedule(schedule) {
+            if (!schedule || Object.keys(schedule).length === 0) {
+                document.getElementById('nextScheduleContainer').innerHTML = '<p>暂无下周排班数据</p>';
+                return;
+            }
+
+            // 获取所有日期并排序
+            const dates = Object.keys(schedule).sort();
+            if (dates.length === 0) {
+                document.getElementById('nextScheduleContainer').innerHTML = '<p>暂无下周排班数据</p>';
+                return;
+            }
+
+            // 按周一到周日重新排序日期
+            const sortedDates = sortDatesByWeekday(dates);
+
+            const { shifts, staffNames } = getAllStaffAndShifts(schedule);
+
+            let html = '<table class="schedule-table">';
+            
+            // 表头 - 显示周一到周日
+            html += '<tr>';
+            html += '<th>姓名</th>';
+            // 根据日期生成列标题（周一到周日）
+            sortedDates.forEach(date => {
+                const dayOfWeek = new Date(date).getDay();
+                const weekDayNames = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+                html += `<th>${weekDayNames[dayOfWeek]}<br>${date}</th>`;
+            });
+            html += '</tr>';
+
+            // 数据行 - 每个护士一行
+            staffNames.forEach(staffName => {
+                html += '<tr>';
+                html += `<td class="day-header">${staffName}</td>`;
+                
+                // 按周一到周日的顺序显示数据
+                sortedDates.forEach(date => {
+                    let shiftValue = '';
+                    // 查找该护士在该日期的班次
+                    for (let shift of shifts) {
+                        if (schedule[date] && schedule[date][shift] === staffName) {
+                            shiftValue = shift;
+                            break;
+                        }
+                    }
+                    
+                    // 创建下拉选择框用于编辑
+                    html += `<td class="shift-cell">
+                        <select class="shift-input" onchange="updateNextSchedule('${date}', '${staffName}', this.value)">
+                            <option value="">--</option>
+                            <option value="P" ${shiftValue === 'P' ? 'selected' : ''}>P</option>
+                            <option value="N" ${shiftValue === 'N' ? 'selected' : ''}>N</option>
+                            <option value="助夜" ${shiftValue === '助夜' ? 'selected' : ''}>助夜</option>
+                            <option value="医嘱" ${shiftValue === '医嘱' ? 'selected' : ''}>医嘱</option>
+                            <option value="服药" ${shiftValue === '服药' ? 'selected' : ''}>服药</option>
+                            <option value="医+服" ${shiftValue === '医+服' ? 'selected' : ''}>医+服</option>
+                            <option value="正1" ${shiftValue === '正1' ? 'selected' : ''}>正1</option>
+                            <option value="正2" ${shiftValue === '正2' ? 'selected' : ''}>正2</option>
+                            <option value="正(中)" ${shiftValue === '正(中)' ? 'selected' : ''}>正(中)</option>
+                            <option value="A1" ${shiftValue === 'A1' ? 'selected' : ''}>A1</option>
+                            <option value="A2" ${shiftValue === 'A2' ? 'selected' : ''}>A2</option>
+                            <option value="休" ${shiftValue === '休' ? 'selected' : ''}>休</option>
+                            <option value="休(prn)" ${shiftValue === '休(prn)' ? 'selected' : ''}>休(prn)</option>
+                        </select>
+                    </td>`;
+                });
+                
+                html += '</tr>';
+            });
+
+            html += '</table>';
+            document.getElementById('nextScheduleContainer').innerHTML = html;
+        }
+
+        // 按周一到周日排序日期
+        function sortDatesByWeekday(dates) {
+            return dates.sort((a, b) => {
+                const dayA = new Date(a).getDay();
+                const dayB = new Date(b).getDay();
+                // 将周日(0)转换为7，使其排在最后
+                const normalizedDayA = dayA === 0 ? 7 : dayA;
+                const normalizedDayB = dayB === 0 ? 7 : dayB;
+                return normalizedDayA - normalizedDayB;
+            });
+        }
+
+        // 更新下周排班数据
+        function updateNextSchedule(date, staffName, newShift) {
+            // 遍历所有班次，清除该护士在该日期的旧班次
+            if (nextSchedule[date]) {
+                for (let key in nextSchedule[date]) {
+                    if (!key.endsWith('_id') && nextSchedule[date][key] === staffName) {
+                        // 找到该护士的当前班次，清空
+                        nextSchedule[date][key] = null;
+                        break;
+                    }
+                }
+                
+                // 如果选择了新的班次，则设置
+                if (newShift) {
+                    nextSchedule[date][newShift] = staffName;
+                }
+            }
+        }
+
+        // 启用按钮
+        function enableButtons() {
+            document.getElementById('copyBtn').disabled = Object.keys(currentSchedule).length === 0;
+            document.getElementById('refreshBtn').disabled = false;
+            document.getElementById('validateBtn').disabled = false;
+            document.getElementById('saveBtn').disabled = false;
+        }
+
+        // 显示消息
+        function showMessage(message, type) {
+            const errorDiv = document.getElementById('errorMessage');
+            const successDiv = document.getElementById('successMessage');
+            
+            errorDiv.style.display = 'none';
+            successDiv.style.display = 'none';
+            
+            if (type === 'error') {
+                errorDiv.textContent = message;
+                errorDiv.style.display = 'block';
+            } else if (type === 'success') {
+                successDiv.textContent = message;
+                successDiv.style.display = 'block';
+            }
+        }
+
+        // 显示加载状态
+        function showLoading(show) {
+            const loadingDiv = document.getElementById('loading');
+            const currentContainer = document.getElementById('currentScheduleContainer');
+            const nextContainer = document.getElementById('nextScheduleContainer');
+            
+            if (show) {
+                loadingDiv.style.display = 'block';
+                currentContainer.style.display = 'none';
+                nextContainer.style.display = 'none';
+            } else {
+                loadingDiv.style.display = 'none';
+                currentContainer.style.display = 'block';
+                nextContainer.style.display = 'block';
+            }
+        }
+
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', async function() {
+            // 初始化护士列表
+            await loadStaffList();
+            // 初始化时加载当前周排班
+            loadCurrentWeekSchedule();
+        });
+    </script>
+</body>
+</html>

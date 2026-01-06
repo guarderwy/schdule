@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>医院二区排班系统 - 全功能版</title>
+    <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css">
+    <script src="https://unpkg.com/vue@3"></script>
+    <script src="https://unpkg.com/element-plus"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <style>
+        body {
+            background-color: #f4f7f9;
+            margin: 0;
+            padding: 20px;
+            font-family: "Helvetica Neue", Helvetica, "PingFang SC", sans-serif;
+        }
+
+        .app-container {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+        }
+
+        .header-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #ebeef5;
+            padding-bottom: 10px;
+        }
+
+        .table-title {
+            margin: 20px 0 10px;
+            font-size: 16px;
+            font-weight: bold;
+            color: #303133;
+            display: flex;
+            align-items: center;
+        }
+
+        .table-title::before {
+            content: "";
+            width: 4px;
+            height: 16px;
+            background: #409EFF;
+            margin-right: 8px;
+            border-radius: 2px;
+        }
+
+        .btn-group {
+            margin: 15px 0;
+            padding: 15px;
+            background: #f9fafc;
+            border-radius: 4px;
+            border: 1px dashed #dcdfe6;
+        }
+
+        .night-row-bg {
+            background-color: #fdf6ec !important;
+        }
+
+        .el-table .cell {
+            text-align: center !important;
+        }
+
+        .el-input__inner {
+            text-align: center !important;
+        }
+
+        .rule-tips-container {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #f0f9eb;
+            border: 1px solid #e1f3d8;
+            border-radius: 8px;
+        }
+
+        .rule-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .rule-item {
+            font-size: 13px;
+            color: #606266;
+        }
+
+        .rule-label {
+            font-weight: bold;
+            color: #409EFF;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app" class="app-container">
+        <div class="header-section">
+            <h2 style="margin:0;">医院二区排班管理系统</h2>
+            <div style="font-size: 13px; color: #909399;">当前周期：{{ nextWeekRange.start }} 至 {{ nextWeekRange.end }}</div>
+        </div>
+
+        <el-tabs v-model="activeTab" type="border-card">
+            <el-tab-pane label="📅 自动排班面板" name="schedule">
+                <div class="table-title">本周排班预览 (只读)</div>
+                <el-table :data="staffList" border size="small" :row-class-name="tableRowClassName">
+                    <el-table-column prop="name" label="姓名" width="100" fixed align="center"></el-table-column>
+                    <el-table-column v-for="day in thisWeekDays" :key="day.date" :label="day.label" align="center">
+                        <template #default="scope">
+                            {{ thisWeekData[String(scope.row.id)]?.[day.date] || '-' }}
+                        </template>
+                    </el-table-column>
+                </el-table>
+
+                <div class="btn-group">
+                    <el-button type="info" @click="copyLastWeek" plain>📋 拷贝上周</el-button>
+                    <el-button type="primary" @click="handleGenerate">⚡ 生成下周夜班</el-button>
+                    <el-button type="success" @click="validateAndSave">💾 保存下周排班</el-button>
+                    <span style="margin-left: 20px; font-size: 12px; color: #F56C6C;">* 系统将根据上周规律自动推演</span>
+                </div>
+
+                <div class="table-title">下周排班编辑</div>
+                <el-table :data="staffList" border size="small" :row-class-name="tableRowClassName">
+                    <el-table-column prop="name" label="姓名" width="100" fixed align="center"></el-table-column>
+                    <el-table-column v-for="day in nextWeekDays" :key="day.date" :label="day.label" align="center">
+                        <template #default="scope">
+                            <el-input v-model="nextWeekData[String(scope.row.id)][day.date]" size="small"
+                                placeholder="-"></el-input>
+                        </template>
+                    </el-table-column>
+                </el-table>
+
+                <div class="rule-tips-container">
+                    <h4>二区排班核心规则 (校验标准)</h4>
+                    <div class="rule-grid">
+                        <div class="rule-item"><span class="rule-label">规律:</span> P → N → 休 → 休(Prn) → A1 → 助夜</div>
+                        <div class="rule-item"><span class="rule-label">必有:</span> 每日必须包含 A1 班 和 A2 班</div>
+                        <div class="rule-item"><span class="rule-label">岗位:</span> 每日必须包含 正1班 和 正2班</div>
+                        <div class="rule-item"><span class="rule-label">工作日:</span> 必须排有 助夜、医嘱、服药、正(中)</div>
+                        <div class="rule-item"><span class="rule-label">周末:</span> 医嘱+服药 班合并为“医+服”</div>
+                        <div class="rule-item"><span class="rule-label">优先:</span> 员工申请休息将跳过规律推算</div>
+                    </div>
+                </div>
+            </el-tab-pane>
+
+            <el-tab-pane label="👥 人员与需求配置" name="staff">
+                <el-row :gutter="20">
+                    <el-col :span="15">
+                        <div class="table-title">人员名单管理</div>
+                        <el-button type="primary" size="small" @click="addDialogVisible = true"
+                            style="margin-bottom: 10px;">新增人员</el-button>
+                        <el-table :data="staffList" border stripe size="small">
+                            <el-table-column prop="name" label="姓名" align="center"></el-table-column>
+                            <el-table-column label="所属组别" align="center">
+                                <template #default="scope">
+                                    <el-switch v-model="scope.row.is_night_group" :active-value="1" :inactive-value="0"
+                                        active-text="夜班组" inactive-text="普通"
+                                        @change="toggleNightStatus(scope.row)"></el-switch>
+                                </template>
+                            </el-table-column>
+                            <el-table-column label="操作" align="center">
+                                <template #default="scope">
+                                    <el-button type="text" @click="openRequest(scope.row)">添加需求</el-button>
+                                    <el-button type="text" style="color: #F56C6C" @confirm="deleteStaff(scope.row.id)"
+                                        @click="deleteStaff(scope.row.id)">删除</el-button>
+                                </template>
+                            </el-table-column>
+                        </el-table>
+                    </el-col>
+                    <el-col :span="9">
+                        <div class="table-title">下周特殊需求记录</div>
+                        <el-table :data="requestList" border size="small">
+                            <el-table-column prop="staff_name" label="姓名"></el-table-column>
+                            <el-table-column prop="request_date" label="日期"></el-table-column>
+                            <el-table-column prop="shift_name" label="要求"></el-table-column>
+                        </el-table>
+                    </el-col>
+                </el-row>
+            </el-tab-pane>
+        </el-tabs>
+
+        <el-dialog v-model="requestShow" title="添加休息/固定班次申请" width="400px">
+            <el-form label-width="80px">
+                <el-form-item label="人员">{{ currentStaff.name }}</el-form-item>
+                <el-form-item label="日期">
+                    <el-date-picker v-model="formReq.date" type="date" value-format="YYYY-MM-DD"
+                        style="width: 100%"></el-date-picker>
+                </el-form-item>
+                <el-form-item label="班次">
+                    <el-select v-model="formReq.shift" style="width: 100%">
+                        <el-option label="休" value="休"></el-option>
+                        <el-option label="正1" value="正1"></el-option>
+                        <el-option label="A1" value="A1"></el-option>
+                        <el-option label="正2" value="正2"></el-option>
+                    </el-select>
+                </el-form-item>
+            </el-form>
+            <template #footer>
+                <el-button @click="submitRequest" type="primary">确认提交</el-button>
+            </template>
+        </el-dialog>
+
+        <el-dialog v-model="addDialogVisible" title="新增医护人员" width="350px">
+            <el-form label-width="80px">
+                <el-form-item label="姓名"><el-input v-model="newStaff.name"></el-input></el-form-item>
+                <el-form-item label="夜班组"><el-switch v-model="newStaff.is_night_group" :active-value="1"
+                        :inactive-value="0"></el-switch></el-form-item>
+            </el-form>
+            <template #footer>
+                <el-button type="primary" @click="submitAddStaff">确定添加</el-button>
+            </template>
+        </el-dialog>
+    </div>
+
+    <script>
+        const { createApp, ref, onMounted, reactive } = Vue;
+
+        createApp({
+            setup() {
+                const activeTab = ref('schedule');
+                const staffList = ref([]);
+                const thisWeekData = ref({});
+                const nextWeekData = ref({});
+                const thisWeekDays = ref([]);
+                const nextWeekDays = ref([]);
+                const requestList = ref([]);
+                const nextWeekRange = reactive({ start: '2026-01-12', end: '2026-01-18' });
+
+                // 弹窗状态
+                const requestShow = ref(false);
+                const addDialogVisible = ref(false);
+                const currentStaff = ref({});
+                const formReq = ref({ date: '', shift: '休' });
+                const newStaff = ref({ name: '', is_night_group: 0 });
+
+                const loadAllData = async () => {
+                    try {
+                        const res = await axios.get('/schedule/schedule/init');
+                        const data = res.data.data;
+                        staffList.value = data.staffs;
+                        thisWeekData.value = data.thisWeek;
+                        thisWeekDays.value = data.days;
+                        nextWeekDays.value = data.nextDays;
+                        requestList.value = data.requests || [];
+
+                        const nextModel = {};
+                        data.staffs.forEach(staff => {
+                            const sId = String(staff.id);
+                            nextModel[sId] = data.nextWeek?.[sId] || {};
+                            data.nextDays.forEach(day => {
+                                if (!nextModel[sId][day.date]) nextModel[sId][day.date] = '';
+                            });
+                        });
+                        nextWeekData.value = nextModel;
+                    } catch (e) { console.error(e); }
+                };
+
+                const tableRowClassName = ({ row }) => row.is_night_group === 1 ? 'night-row-bg' : '';
+
+                // 操作：拷贝上周
+                const copyLastWeek = () => {
+                    staffList.value.forEach(staff => {
+                        const sId = String(staff.id);
+                        for (let i = 0; i < 7; i++) {
+                            const lastDate = thisWeekDays.value[i].date;
+                            const nextDate = nextWeekDays.value[i].date;
+                            if (thisWeekData.value[sId]?.[lastDate]) {
+                                nextWeekData.value[sId][nextDate] = thisWeekData.value[sId][lastDate];
+                            }
+                        }
+                    });
+                    ElementPlus.ElMessage.success('已拷贝本周班次到下周');
+                };
+
+                const handleGenerate = async () => {
+                    const res = await axios.post('/schedule/schedule/generate', { start_date: nextWeekRange.start });
+                    res.data.data.forEach(item => {
+                        const sId = String(item.staff_id);
+                        if (nextWeekData.value[sId]) nextWeekData.value[sId][item.work_date] = item.shift_name;
+                    });
+                    ElementPlus.ElMessage.success('夜班组规律已生成');
+                };
+
+                const validateAndSave = async () => {
+                    try {
+                        const res = await axios.post('/schedule/schedule/save', { schedules: nextWeekData.value });
+                        if (res.data.code === 200) ElementPlus.ElMessage.success('保存成功');
+                    } catch (err) {
+                        const errors = err.response.data.errors || ["保存失败"];
+                        ElementPlus.ElMessageBox.alert(errors.join('<br>'), '规则冲突', { dangerouslyUseHTMLString: true, type: 'error' });
+                    }
+                };
+
+                // 人员与需求逻辑
+                const openRequest = (staff) => {
+                    currentStaff.value = staff;
+                    requestShow.value = true;
+                };
+
+                const submitRequest = async () => {
+                    await axios.post('/schedule/schedule/addRequest', {
+                        staff_id: currentStaff.value.id,
+                        date: formReq.value.date,
+                        shift: formReq.value.shift
+                    });
+                    requestShow.value = false;
+                    loadAllData();
+                    ElementPlus.ElMessage.success('需求已记录');
+                };
+
+                const toggleNightStatus = async (row) => {
+                    await axios.post('/schedule/staff/toggleNightGroup', { id: row.id, status: row.is_night_group });
+                    ElementPlus.ElMessage.success('状态已同步');
+                };
+
+                const submitAddStaff = async () => {
+                    await axios.post('/schedule/staff/add', newStaff.value);
+                    addDialogVisible.value = false;
+                    loadAllData();
+                    ElementPlus.ElMessage.success('人员已添加');
+                };
+
+                const deleteStaff = async (id) => {
+                    await axios.post(`/schedule/staff/delete/${id}`);
+                    loadAllData();
+                    ElementPlus.ElMessage.warning('人员已删除');
+                };
+
+                onMounted(loadAllData);
+
+                return {
+                    activeTab, staffList, thisWeekData, nextWeekData, thisWeekDays, nextWeekDays,
+                    tableRowClassName, copyLastWeek, handleGenerate, validateAndSave,
+                    requestShow, currentStaff, formReq, openRequest, submitRequest,
+                    addDialogVisible, newStaff, submitAddStaff, deleteStaff, toggleNightStatus,
+                    requestList, nextWeekRange
+                };
+            }
+        }).use(ElementPlus).mount('#app');
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>games</title>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css">
+</head>
+
+<body>
+    <div id="app">
+        <div style="width: 50%;margin: 0 auto;">
+            <el-form :model="ruleForm" :rules="rules" ref="ruleForm" label-width="100px" spellcheck="false">
+                <el-form-item label="operator_token">
+                    <el-input v-model="form.operator_token"></el-input>
+                </el-form-item>
+
+                <el-form-item label="secret">
+                    <el-input v-model="form.secret"></el-input>
+                </el-form-item>
+
+                <el-form-item label="user_id">
+                    <el-input v-model="form.user_id"></el-input>
+                </el-form-item>
+
+                <el-form-item label="user_name">
+                    <el-input v-model="form.user_name"></el-input>
+                </el-form-item>
+
+                <el-form-item label="rtp">
+                    <el-input v-model="form.rtp"></el-input>
+                </el-form-item>
+
+                <el-button @click="CreateUser()">创建用户</el-button>
+                <el-button @click="GetUserInfo()" v-if="user_id">获取用户信息</el-button>
+            </el-form>
+
+            <div style="margin-top: 20px;"></div>
+
+            <el-form label-width="100px" v-if="user_id">
+
+                <el-form-item label="游戏类型">
+                    <el-select v-model="form.type" placeholder="请选择游戏类型" @change="GetGames()">
+                        <el-option v-for="item_type in item_types" :label="item_type" :value="item_type"></el-option>
+                    </el-select>
+                </el-form-item>
+
+                <el-form-item label="语言">
+                    <el-select v-model="language" placeholder="请选择语言">
+                        <el-option v-for="(language, k) in languages" :label="language" :value="k"></el-option>
+                    </el-select>
+                </el-form-item>
+
+                <el-form-item label="游戏">
+                    <el-select v-model="game_code" prop="game_code" placeholder="请选择游戏">
+                        <el-option v-for="game in game_list" :key="game.id" :label="game.name"
+                            :value="game.code"></el-option>
+                    </el-select>
+                </el-form-item>
+
+                <el-button @click="GameUrl()">打开游戏</el-button>
+                <el-button @click="GameLauchUrl('formName')">获取游戏打开html</el-button>
+
+            </el-form>
+            <iframe v-show="showIframe" id="myFrame" width="399" height="599"></iframe>
+
+            <div style="margin-top: 20px;"></div>
+
+            <el-form label-width="80px" v-if="user_id">
+                <el-form-item label="rtp">
+                    <el-input placeholder="rtp" v-model="form.rtp">
+                    </el-input>
+                </el-form-item>
+                <el-button @click="SetUserRtp">设置rtp</el-button>
+            </el-form>
+
+            <div style="margin-top: 20px;"></div>
+
+            <el-form label-width="80px" v-if="user_id">
+                <el-form-item label="设置局数">
+                    <el-input v-model="nums"></el-input>
+                </el-form-item>
+                <el-button @click="StartData">数据开跑</el-button>
+                <el-button @click="GetResults">获取结果</el-button>
+            </el-form>
+
+            <template>
+                <div v-show="showGetResult">
+                    <div>
+                        <p>
+                            <span>游戏类型【{{form.type}}】-</span> <span v-if="game_code">名称【{{doGameList(game_code)}}】-</span> <span>当前设置RTP【{{get_result.rtp}}】</span>
+                        </p>   
+                        <p>总局数：{{get_result.sus}}</p> 
+                        <p>赢局：{{get_result.win}}</p> 
+                        <p>输局：{{get_result.lose}}</p> 
+                    </div>
+                    <div style="margin: 10px 0;">倍数详情 </div>
+                    <el-table :data="table_data" stripe border>
+                        <el-table-column prop="rate" label="倍率"></el-table-column>
+                        <el-table-column prop="nums" label="局数"></el-table-column>
+                        <el-table-column prop="percent" label="占比"></el-table-column>
+                    </el-table>
+                </div>
+            </template>
+
+            
+        </div>
+
+    </div>
+
+    <!-- <h1>aaaa</h1> -->
+    <!-- <script defer src="https://static.cloudflareinsights.com/beacon.min.js/vcd15cbe7772f49c399c6a5babf22c1241717689176015"
+        integrity="sha512-ZpsOmlRQV6y907TI0dKBHq9Md29nnaEIPlkf84rnaERnq6zvWvPUqr2ft8M1aS28oN72PdrCzSjY4U6VaAw1EQ=="
+        data-cf-beacon='{"version":"2024.11.0","token":"f84f9bd30464407a932fe8701ca85152","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}'
+        crossorigin="anonymous"></script> -->
+</body>
+
+<script src="https://unpkg.com/vue@2/dist/vue.js"></script>
+<script src="https://unpkg.com/element-ui/lib/index.js"></script>
+<script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+<script src="/js/md5.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        new Vue({
+            el: '#app',
+            data() {
+                return {
+                    form: {
+                        operator_token: '1lhdibfzzepmviiyfsfdqeu2nzw2jhc2',
+                        secret: 'uvtkutdjkdxzqpabe026o7fmrianmo_z',
+                        user_id: '',
+                        user_name: '',
+                        ts: 0,
+                        sign: '',
+                        type: 'pg',
+                        rtp: 0
+                    },
+                    user_id: '',
+                    user_token: '',
+                    game_code: '',
+                    language: 'pt',
+                    game_list: [],
+                    showIframe: false,
+                    //跑数据局数
+                    nums: 1,
+                    //游戏类型
+                    item_types: JSON.parse('{:json_encode(config("constant.game_types"))}'),
+                    //语言
+                    languages: JSON.parse('{:json_encode(config("constant.languages"))}'),
+                    //线上版本设置空
+                    prefixUrl: '{:config("constant.prefixUrl")}',
+
+                    showGetResult: false,
+                    //执行结果
+                    run_result: {
+                        id: null,
+                    },
+                    get_result: {
+                        rtp: '',
+                    },
+
+                    table_data: [
+                    ],
+
+                    //验证表单
+                    ruleForm: {
+                        game_code: '',
+                    },
+                    rules: {
+                        game_code: [
+                            { required: true, message: '请选择游戏', trigger: 'change' }
+                        ]
+                    }
+                }
+            },
+            created: function () {
+                this.GetGames();
+            },
+            computed: {
+                
+            },
+            methods: {
+                CreateUrl(uri) {
+                    return this.prefixUrl + uri;
+                },
+                CreateUser() {
+                    if (!this.form.user_id || !this.form.user_name) {
+                        this.$message.error('请填写user_id和user_name');
+                        return;
+                    }
+
+                    this.form.ts = Math.floor(Date.now() / 1000);
+                    let data = {
+                        operator_token: this.form.operator_token,
+                        rtp: this.form.rtp * 1,
+                        ts: this.form.ts,
+                        user_id: this.form.user_id,
+                        user_name: this.form.user_name,
+                        key: this.form.secret
+                    };
+                    data.sign = md5(new URLSearchParams(data).toString());
+                    delete data.key;
+
+                    axios.post(this.CreateUrl('/api/web/user_session'), data).then(res => {
+                        const res_data = res.data.data;
+
+                        if (res.data.code != 0) {
+                            this.$message.error('创建用户失败：' + res.data.message);
+                            return;
+                        }
+                        this.$message.success('创建用户成功');
+                        this.user_id = res_data.user_id;
+                        this.user_token = res_data.token;
+                    }).catch(err => {
+                        this.$message.error('创建用户请求失败');
+                    });
+                },
+
+                GetGames() {
+                    this.form.ts = Math.floor(Date.now() / 1000);
+                    let data = {
+                        operator_token: this.form.operator_token,
+                        ts: this.form.ts,
+                        type: this.form.type,
+                        key: this.form.secret,
+                    };
+                    data.sign = md5(new URLSearchParams(data).toString())
+                    delete data.key;
+
+                    axios.post(this.CreateUrl('/api/web/game_list'), data).then(res => {
+                        let res_data = res.data.data
+
+                        if (res.data.code != 0) {
+                            this.$message.error('失败');
+                            return;
+                        }
+
+                        this.game_list = res_data
+                    }).catch(err => {
+                        this.$message.error('失败');
+                    })
+                },
+
+                //处理后的游戏列表
+                doGameList(code) {
+                    const item = this.game_list.find(item => item.code == code);
+                    return item ? item.name : code;
+                },
+
+                GameUrl() {
+                    if (!this.user_id || !this.user_token) {
+                        this.$message.error('请先创建用户');
+                        return;
+                    }
+
+                    if (!this.game_code) {
+                        this.$message.error('请选择游戏');
+                        return;
+                    }
+
+                    this.form.ts = Math.floor(Date.now() / 1000);
+                    let data = {
+                        game_code: this.game_code,
+                        language: this.language,
+                        operator_token: this.form.operator_token,
+                        ts: this.form.ts,
+                        type: this.form.type,
+                        user_id: this.user_id,
+                        user_token: this.user_token,
+                        key: this.form.secret
+                    };
+                    console.log('data', data);
+
+                    data.sign = md5(new URLSearchParams(data).toString())
+                    delete data.key
+
+                    axios.post(this.CreateUrl('/api/web/game_url'), data).then(res => {
+                        let res_data = res.data.data
+
+                        if (res.data.code != 0) {
+                            this.$message.error('失败');
+                            return;
+                        }
+                        this.$message.error('打开新页面');
+                        console.log('res_data.url', res_data.url);
+                        window.open(res_data.url, "blank")
+                    }).catch(err => {
+                        this.$message.error('失败');
+                    })
+                },
+
+                GameLauchUrl(formName) {
+                    if (!this.user_token || !this.user_id) {
+                        this.$message.error('请先创建用户');
+                        return
+                    }
+
+                    if (!this.game_code) {
+                        this.$message.error('请选择游戏');
+                        return;
+                    }
+
+                    /* this.$refs[formName].validate((valid) => {
+                        if (!valid) {
+                            this.$message.error('请填写完整表单');
+                            return false;
+                        }
+                    }) */
+
+                    this.form.ts = Math.floor(Date.now() / 1000)
+                    let data = {
+                        game_code: this.game_code,
+                        language: this.language,
+                        operator_token: this.form.operator_token,
+                        ts: this.form.ts,
+                        type: this.form.type,
+                        user_id: this.user_id,
+                        user_token: this.user_token,
+                        key: this.form.secret,
+                    }
+                    console.log('data', data);
+                    data.sign = md5(new URLSearchParams(data).toString())
+                    delete data.key
+
+                    axios.post(this.CreateUrl('/api/web/get_launch_url'), data).then(res => {
+                        this.showIframe = true
+                        let res_data = res.data.data
+                        console.log('res_data', res_data)
+
+                        const iframe = document.getElementById("myFrame");
+                        const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+
+                        iframeDoc.open();
+                        iframeDoc.write(res.data);
+                        iframeDoc.close();
+
+                    }).catch(err => {
+                        this.$message.error('失败');
+                    })
+                },
+
+                GetUserInfo() {
+                    this.form.ts = Math.floor(Date.now() / 1000);
+                    let data = {
+                        operator_token: this.form.operator_token,
+                        ts: this.form.ts,
+                        user_id: this.user_id,
+                        key: this.form.secret,
+                    }
+                    data.sign = md5(new URLSearchParams(data).toString())
+                    delete data.key
+
+                    axios.post(this.CreateUrl('/api/web/user_info'), data).then(res => {
+                        let res_data = res.data.data
+
+                        if (res.data.code != 0) {
+                            this.$message.error('失败');
+                            return;
+                        }
+
+                        this.$message.success(JSON.stringify(res_data));
+                        this.form.rtp = res_data.rtp
+
+                    }).catch(err => {
+                        this.$message.error('失败');
+                    })
+                },
+
+                SetUserRtp() {
+                    if (this.form.rtp > 300) {
+                        this.$message.error('rtp不能大于300');
+                        return;
+                    }
+
+                    this.form.ts = Math.floor(Date.now() / 1000);
+                    let data = {
+                        operator_token: this.form.operator_token,
+                        rtp: this.form.rtp * 1,
+                        ts: this.form.ts,
+                        user_id: this.form.user_id,
+                        key: this.form.secret,
+                    }
+                    data.sign = md5(new URLSearchParams(data).toString())
+                    delete data.key
+
+                    axios.post(this.CreateUrl('/api/web/set_user_rtp'), data).then(res => {
+                        let res_data = res.data.data
+
+                        if (res.data.code != 0) {
+                            this.$message.error('失败');
+                            return;
+                        }
+
+                        this.$message.success("设置成功，档位：" + res_data.rtp);
+                        this.form.rtp = res_data.rtp
+
+                    }).catch(err => {
+                        this.$message.error('失败');
+                    })
+                },
+
+                StartData() {
+                    if (!this.user_id || !this.user_token) {
+                        this.$message.error('请先创建用户');
+                        return;
+                    }
+
+                    if (!this.game_code) {
+                        this.$message.error('请选择游戏');
+                        return;
+                    }
+
+                    this.form.ts = Math.floor(Date.now() / 1000);
+                    let data = {
+                        game_code: this.game_code,
+                        language: this.language,
+                        operator_token: this.form.operator_token,
+                        ts: this.form.ts,
+                        type: this.form.type,
+                        user_id: this.user_id,
+                        user_token: this.user_token,
+                        key: this.form.secret
+                    };
+                    // console.log('data', data);
+
+                    data.sign = md5(new URLSearchParams(data).toString())
+                    delete data.key
+
+                    axios.post(this.CreateUrl('/api/web/game_url'), data).then(async res => {
+                        let res_data = res.data.data
+
+                        if (res.data.code != 0) {
+                            this.$message.error('失败');
+                            return;
+                        }
+                        /* this.$message.error('打开新页面');
+                        console.log('res_data.url', res_data.url);
+                        window.open(res_data.url, "blank") */
+
+                        const gameUrl = res_data.url;
+                        const run = await axios.post('/api/index/startRun', { game_url: gameUrl, nums: this.nums, user_id: this.user_id, rtp: this.form.rtp });
+                        if (run.data.code != 0) {
+                            this.$message.error('失败：' + run.data.message);
+                            return;
+                        } else {
+                            this.run_result = run.data.data;
+                            this.showGetResult = false;
+                            this.$message.success('执行成功，请勿刷新页面，稍后点击获取结果按钮');
+                        }
+
+
+                    }).catch(err => {
+                        this.$message.error('失败');
+                    })
+                },
+
+                GetResults() { 
+                    // this.run_result.id = 9;
+                    if (!this.run_result.id) {
+                        this.$message.error('请先执行跑数据');
+                        return;
+                    }
+
+                    axios.get('/api/index/getResult?id=' + this.run_result.id).then(res => {
+                        if (res.data.code != 0) {
+                            this.$message.error('获取结果失败:' + res.data.message);
+                            return;
+                        }
+                        this.showGetResult = true;
+                        const res_data = res.data.data;
+                        this.get_result = res_data;
+                        this.table_data = res_data.result;
+                    }).catch(err => {
+                        this.$message.error('获取结果失败:' + err.message);
+                    })
+                }
+            }
+
+            // template: '<div></div>'
+        });
+
+
+    });
+</script>
+
+</html>
