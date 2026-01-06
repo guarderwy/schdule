@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>医院二区排班系统 - 全功能版</title>
+    <title>医院排班系统 - 全功能版</title>
     <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css">
     <script src="https://unpkg.com/vue@3"></script>
     <script src="https://unpkg.com/element-plus"></script>
@@ -100,7 +100,7 @@
 <body>
     <div id="app" class="app-container">
         <div class="header-section">
-            <h2 style="margin:0;">医院二区排班管理系统</h2>
+            <h2 style="margin:0;">医院排班管理系统</h2>
             <div style="font-size: 13px; color: #909399;">当前周期：{{ nextWeekRange.start }} 至 {{ nextWeekRange.end }}</div>
         </div>
 
@@ -135,7 +135,7 @@
                 </el-table>
 
                 <div class="rule-tips-container">
-                    <h4>二区排班核心规则 (校验标准)</h4>
+                    <h4>排班核心规则 (校验标准)</h4>
                     <div class="rule-grid">
                         <div class="rule-item"><span class="rule-label">规律:</span> P → N → 休 → 休(Prn) → A1 → 助夜</div>
                         <div class="rule-item"><span class="rule-label">必有:</span> 每日必须包含 A1 班 和 A2 班</div>
