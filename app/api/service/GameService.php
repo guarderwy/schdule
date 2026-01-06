@@ -11,12 +11,12 @@ class GameService
     /**
      * 验证地址
      */
-    const VERIFY_URL = 'https://api.wwapi.vip/web-api/auth/session/v2/verifyOperatorPlayerSession?traceId=FYRYLY20';
+    const VERIFY_URL = 'https://xxx.vip/web-api/auth/session/v2/verifyOperatorPlayerSession?traceId=FYRYLY20';
 
     /**
      * 游戏地址
      */
-    const SPIN_URL = 'https://api.wwapi.vip/%sv2/Spin?traceId=EEBTBG20';
+    const SPIN_URL = 'https://xxx.vip/%sv2/Spin?traceId=EEBTBG20';
 
     /**
      * 队列数量
