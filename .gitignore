@@ -2,4 +2,4 @@
 /.vscode
 /vendor
 *.log
-/config
+config/*
