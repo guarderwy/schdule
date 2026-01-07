@@ -136,6 +136,35 @@
             overflow: hidden;
             border: 1px solid #ebeef5;
         }
+
+        /* 夜班行 hover 强调 */
+        .el-table__row.night-row:hover {
+            background-color: #fff7e6 !important;
+        }
+
+        /* 周末列弱化（可选） */
+        .weekend-col {
+            background-color: #fafafa;
+        }
+
+        .stats-group {
+            display: flex;
+            gap: 16px;
+        }
+
+        .stat-item {
+            padding-left: 12px;
+            border-left: 3px solid #ebeef5;
+        }
+
+        .stat-item b {
+            font-size: 20px;
+        }
+
+        .stat-item span {
+            font-size: 12px;
+            color: #999;
+        }
     </style>
 </head>
 
@@ -143,17 +172,30 @@
     <div id="app" class="app-container">
         <div class="header-bar">
             <div>
-                <h1 style="margin:0; font-size: 22px; color: #303133;">🏥 智慧医疗排班系统</h1>
-                <p style="margin:4px 0 0; font-size: 13px; color: #909399;">推算起点：<b style="color:var(--h-blue)">{{
-                        nextWeekRange.start }}</b></p>
+                <h1 style="margin:0;font-size:22px">🏥 智慧医疗排班系统</h1>
+                <p style="margin:4px 0 0;color:#909399">
+                    下周起始：<b style="color:#409eff">{{ nextWeekRange.start }}</b>
+                </p>
             </div>
+
             <div class="stats-group">
-                <div class="stat-item"><b>{{ staffList.length }}</b><span>总人数</span></div>
-                <div class="stat-item"><b>{{ requestList.length }}</b><span>待办需求</span></div>
-                <div class="stat-item"><b style="color:var(--h-green)">{{ staffList.filter(s => s.is_night_group).length
-                        }}</b><span>夜班组</span></div>
+                <div class="stat-item">
+                    <b>{{ staffList.length }}</b>
+                    <span>总人数</span>
+                </div>
+                <div class="stat-item">
+                    <b style="color:#67c23a">
+                        {{ staffList.filter(s => s.is_night_group).length }}
+                    </b>
+                    <span>夜班组</span>
+                </div>
+                <div class="stat-item">
+                    <b style="color:#e6a23c">{{ requestList.length }}</b>
+                    <span>需求申请</span>
+                </div>
             </div>
         </div>
+
 
         <el-tabs v-model="activeTab" type="border-card">
             <el-tab-pane name="schedule">
@@ -164,12 +206,22 @@
                         <InfoFilled />
                     </el-icon>本周回顾</div>
                 <el-table :data="staffList" border size="small" :row-class-name="tableRowClassName">
-                    <el-table-column prop="name" label="姓名" width="90" fixed align="center"></el-table-column>
+                    <el-table-column label="姓名" width="110" fixed align="center">
+                        <template #default="scope">
+                            <el-icon v-if="scope.row.is_night_group" style="color:#e6a23c">
+                                <Moon />
+                            </el-icon>
+                            {{ scope.row.name }}
+                        </template>
+                    </el-table-column>
+
                     <el-table-column v-for="day in thisWeekDays" :key="day.date" :label="day.label" align="center">
                         <template #default="scope">
-                            <span :class="getShiftTextClass(thisWeekData[scope.row.id]?.[day.date])">
+                            <el-tag size="small" :type="getShiftTagType(thisWeekData[scope.row.id]?.[day.date])"
+                                effect="plain">
                                 {{ thisWeekData[scope.row.id]?.[day.date] || '-' }}
-                            </span>
+                            </el-tag>
+
                         </template>
                     </el-table-column>
                     <el-table-column label="申请" width="60" fixed="right" align="center">
@@ -190,7 +242,15 @@
                         <Edit />
                     </el-icon>下周编辑</div>
                 <el-table :data="staffList" border size="small" :row-class-name="tableRowClassName">
-                    <el-table-column prop="name" label="姓名" width="90" fixed align="center"></el-table-column>
+                    <el-table-column label="姓名" width="110" fixed align="center">
+                        <template #default="scope">
+                            <el-icon v-if="scope.row.is_night_group" style="color:#e6a23c">
+                                <Moon />
+                            </el-icon>
+                            {{ scope.row.name }}
+                        </template>
+                    </el-table-column>
+
                     <el-table-column v-for="day in nextWeekDays" :key="day.date" :label="day.label" align="center">
                         <template #default="scope">
                             <el-select v-model="nextWeekData[scope.row.id][day.date]" size="small" class="shift-select"
@@ -202,6 +262,27 @@
                         </template>
                     </el-table-column>
                 </el-table>
+
+                <div class="section-title" style="margin-top:25px">
+                    <el-icon>
+                        <Document />
+                    </el-icon> 夜班排班规则说明
+                </div>
+
+                <el-card shadow="never" style="background:#f9fafc;border-radius:10px">
+                    <el-timeline>
+                        <el-timeline-item type="primary">
+                            夜班循环：<b>P → N → 休 → 休(Prn) → A1/A2 → 助夜 → P</b>
+                        </el-timeline-item>
+                        <el-timeline-item>夜班后必须休息，夜休后为备班（Prn）</el-timeline-item>
+                        <el-timeline-item>A1 / A2 只出现在夜班后</el-timeline-item>
+                        <el-timeline-item>助夜仅周一至周五安排，周末自动跳过</el-timeline-item>
+                        <el-timeline-item>白班或助夜结束后，下一次夜班必须从 P 开始</el-timeline-item>
+                        <el-timeline-item>夜班仅由夜班组人员轮转生成</el-timeline-item>
+                        <el-timeline-item>个人休假 / 班次申请优先级最高</el-timeline-item>
+                    </el-timeline>
+                </el-card>
+
             </el-tab-pane>
 
             <el-tab-pane name="requests">
@@ -347,6 +428,15 @@
                     return 'txt-work';
                 };
 
+                const getShiftTagType = (s) => {
+                    if (!s) return 'info';
+                    if (s === 'N') return 'danger';
+                    if (s === 'P') return 'warning';
+                    if (s?.includes('休')) return 'info';
+                    if (s === '助夜') return 'success';
+                    return 'primary';
+                };
+
                 const tableRowClassName = ({ row }) => row.is_night_group === 1 ? 'night-row' : '';
 
                 const copyLastWeek = () => {
@@ -433,7 +523,7 @@
                 };
 
                 onMounted(loadAllData);
-                return { activeTab, staffList, thisWeekData, nextWeekData, thisWeekDays, nextWeekDays, shiftOptions, getShiftTextClass, tableRowClassName, copyLastWeek, handleGenerate, validateAndSave, historyMonday, historyDays, historyModel, loadHistory, saveHistory, nextWeekRange, requestShow, currentStaff, formReq, openRequest, submitRequest, addDialogVisible, newStaff, submitAddStaff, deleteStaff, toggleNightStatus, requestList, deleteRequest };
+                return { activeTab, staffList, thisWeekData, nextWeekData, thisWeekDays, nextWeekDays, shiftOptions, getShiftTextClass, tableRowClassName, copyLastWeek, handleGenerate, validateAndSave, historyMonday, historyDays, historyModel, loadHistory, saveHistory, nextWeekRange, requestShow, currentStaff, formReq, openRequest, submitRequest, addDialogVisible, newStaff, submitAddStaff, deleteStaff, toggleNightStatus, requestList, deleteRequest, getShiftTagType };
             }
         });
 
