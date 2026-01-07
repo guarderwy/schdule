@@ -38,7 +38,7 @@ Route::group('staff', function () {
 
 
 // 1. 模拟 6 名夜班组人员
-Route::get('schedule/mockStaff', function () {
+/* Route::get('schedule/mockStaff', function () {
     Db::name('staff')->delete(true);
     Db::name('schedule')->delete(true);
 
@@ -83,4 +83,4 @@ Route::get('schedule/mockThisWeek', function () {
         Db::rollback();
         return $e->getMessage();
     }
-});
+}); */

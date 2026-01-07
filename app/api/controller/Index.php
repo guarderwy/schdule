@@ -11,6 +11,7 @@ use think\facade\Cache;
 use think\facade\Db;
 use think\facade\Queue;
 use think\facade\Request;
+use think\Response;
 
 class Index extends BaseController
 {
@@ -31,7 +32,7 @@ class Index extends BaseController
 
     public function testBind()
     {
-        $this->app->bind('user', function () {
+        /* $this->app->bind('user', function () {
             return 'bind user';
         });
 
@@ -43,7 +44,10 @@ class Index extends BaseController
 
         dump(app()->make('app\TestService')->service());
         dump(app()->make('ttest')->service());
-        dump($this->app->ttest->service());
+        dump($this->app->ttest->service()); */
+
+        dump(json(['a' => 1]));
+        dump(Response::create(['a' => 1], 'json', 200));
     }
 
 

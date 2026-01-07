@@ -44,11 +44,12 @@ class CreateNursingSchedule extends Migrator
             ->create();
 
         // 3. 需求配置表 (申请休息等)
-        $this->table('staff_requests')
+        $this->table('schedule_requests')
             ->addColumn('staff_id', 'integer')
             ->addColumn('request_date', 'date')
             ->addColumn('shift_name', 'string', ['limit' => 20]) // 如 '休'
             ->addColumn('reason', 'string', ['limit' => 255, 'default' => '']) // 增加默认值为空字符串
+            ->addColumn('create_time', 'datetime')
             ->create();
     }
 }

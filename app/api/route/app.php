@@ -11,3 +11,5 @@ Route::group('schedule', function () {
     Route::post('request', 'schedule/request');
     Route::get('get', 'schedule/get');
 });
+
+Route::get('testBind', 'index/testBind');
